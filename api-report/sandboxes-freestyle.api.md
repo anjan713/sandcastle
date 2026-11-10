@@ -15,6 +15,7 @@ export const freestyle: (options?: FreestyleOptions) => IsolatedSandboxProvider;
 export interface FreestyleOptions extends Omit<CreateVmOptions, "firewall" | "slug" | "reassignSlug"> {
     readonly apiKey?: string;
     readonly baseUrl?: string;
+    readonly claudeCodeOauthToken?: string;
     readonly env?: Record<string, string>;
     readonly firewall?: CreateVmOptions["firewall"];
     readonly maxOutputTailChars?: number;

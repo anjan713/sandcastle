@@ -1,5 +1,5 @@
 /**
- * Copying files into a Freestyle VM, for the Freestyle provider
+ * Copying files into and out of a Freestyle VM, for the Freestyle provider
  * (`./freestyle.ts`). A directory goes in as one tarball.
  *
  * The SDK's filesystem API writes as root, so every copy ends by handing the
@@ -9,9 +9,9 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { readFile, rm, stat } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, posix } from "node:path";
+import { dirname, join, posix } from "node:path";
 import type { Vm } from "freestyle";
 import { shellEscape } from "../AgentProvider.js";
 import { runSetupCommand } from "./freestyleExec.js";
@@ -71,4 +71,13 @@ export const makeCopyIn =
     await runSetupCommand(vm, `chown ${owner} ${shellEscape(sandboxPath)}`, {
       root: true,
     });
+  };
+
+/** The handle's `copyFileOut`: one VM file to the host, making its folder. */
+export const makeCopyFileOut =
+  (vm: Vm) =>
+  async (sandboxPath: string, hostPath: string): Promise<void> => {
+    const bytes = await vm.fs.readFile(sandboxPath);
+    await mkdir(dirname(hostPath), { recursive: true });
+    await writeFile(hostPath, bytes);
   };

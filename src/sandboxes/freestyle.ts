@@ -8,8 +8,6 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
 import { Config, Effect } from "effect";
 import type { CreateVmOptions, Vm } from "freestyle";
 import { createIsolatedSandboxProvider } from "../SandboxProvider.js";
@@ -18,8 +16,9 @@ import type {
   IsolatedSandboxProvider,
 } from "../SandboxProvider.js";
 import { MAX_TAIL_CHARS } from "../boundedTail.js";
+import { protectClaudeToken } from "./freestyleClaudeToken.js";
 import { execInVm, runSetupCommand } from "./freestyleExec.js";
-import { makeCopyIn } from "./freestyleFiles.js";
+import { makeCopyFileOut, makeCopyIn } from "./freestyleFiles.js";
 import { registerVmDeletion } from "./freestyleShutdown.js";
 
 /**
@@ -50,6 +49,22 @@ export interface FreestyleOptions
 
   /** Environment variables injected by this provider. Merged at launch time with env resolver and agent provider env. */
   readonly env?: Record<string, string>;
+
+  /**
+   * Claude Code OAuth token (from `claude setup-token`) to keep out of the VM.
+   * Defaults to `CLAUDE_CODE_OAUTH_TOKEN` in the sandbox env.
+   *
+   * The VM never holds the token. Its `CLAUDE_CODE_OAUTH_TOKEN` is a
+   * placeholder, and a TLS rule created with the VM (and deleted with it)
+   * sets the real token on the VM's requests to `api.anthropic.com` at
+   * Freestyle's edge. So nothing in the VM can read the token or send it
+   * anywhere else.
+   *
+   * A long-lived sandbox (`createSandbox()`) exports each agent's own `env`
+   * inside the agent's command, where this provider cannot see it. Pass the
+   * token here, not in `claudeCode(..., { env })`, for that case.
+   */
+  readonly claudeCodeOauthToken?: string;
 
   /**
    * Maximum characters of streamed `exec` output kept per stream for
@@ -143,11 +158,7 @@ const makeHandle = (vm: Vm, context: HandleContext): IsolatedSandboxHandle => {
         scratchDir,
       }),
     copyIn: makeCopyIn(vm, owner),
-    copyFileOut: async (sandboxPath, hostPath) => {
-      const bytes = await vm.fs.readFile(sandboxPath);
-      await mkdir(dirname(hostPath), { recursive: true });
-      await writeFile(hostPath, bytes);
-    },
+    copyFileOut: makeCopyFileOut(vm),
     close: async () => {
       await vm.delete();
       // Only once the delete has gone through: if it threw, the exit
@@ -233,16 +244,24 @@ export const freestyle = (
     apiKey,
     baseUrl,
     firewall,
+    tls,
+    claudeCodeOauthToken,
     ...vmOptions
   } = options ?? {};
   return createIsolatedSandboxProvider({
     name: "freestyle",
     env: providerEnv,
-    create: async ({ env }): Promise<IsolatedSandboxHandle> =>
-      bootVm(
+    create: async ({ env }): Promise<IsolatedSandboxHandle> => {
+      const protectedVm = protectClaudeToken(env, claudeCodeOauthToken, tls);
+      return bootVm(
         { apiKey: await resolveApiKey(apiKey), baseUrl },
-        { ...vmOptions, firewall: firewall ?? PUBLIC_EGRESS },
-        { env, maxOutputTailChars },
-      ),
+        {
+          ...vmOptions,
+          firewall: firewall ?? PUBLIC_EGRESS,
+          ...(protectedVm.tls === undefined ? {} : { tls: protectedVm.tls }),
+        },
+        { env: protectedVm.env, maxOutputTailChars },
+      );
+    },
   });
 };

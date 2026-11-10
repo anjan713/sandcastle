@@ -63,6 +63,8 @@ interface World {
   readonly setup: Started[];
   readonly ptys: Started[];
   readonly closedSessions: string[];
+  /** Every file body written into the VM, such as each `exec`'s script. */
+  readonly written: string[];
 }
 
 const world: World = {
@@ -77,6 +79,7 @@ const world: World = {
   setup: [],
   ptys: [],
   closedSessions: [],
+  written: [],
 };
 
 let nextVm = 0;
@@ -143,7 +146,9 @@ const fsRoute = async (req: IncomingMessage, res: ServerResponse, url: URL) => {
   const path = url.searchParams.get("path") ?? "";
   if (op === "write" && req.method === "PUT") {
     const mode = url.searchParams.get("mode");
-    await writeFile(path, await readBody(req));
+    const body = await readBody(req);
+    world.written.push(body.toString());
+    await writeFile(path, body);
     await chmod(path, mode === null ? 0o600 : Number(mode));
     sendJson(res, 200, {});
     return;
@@ -280,6 +285,7 @@ describe.skipIf(process.platform === "win32")("freestyle()", () => {
     world.setup.length = 0;
     world.ptys.length = 0;
     world.closedSessions.length = 0;
+    world.written.length = 0;
   });
 
   afterEach(() => {
@@ -445,6 +451,106 @@ describe.skipIf(process.platform === "win32")("freestyle()", () => {
 
     expect(result.stdout).toBe(`${secret} 2\n`);
     expect(world.ptys.at(-1)?.command).not.toContain("quoted");
+  });
+
+  describe("Claude Code token", () => {
+    const PLACEHOLDER = "sandcastle-placeholder-replaced-at-freestyle-edge";
+
+    const edgeRule = (token: string) => ({
+      action: "allow",
+      domain: "api.anthropic.com",
+      source: {},
+      destination: { public: true },
+      transform: [{ headers: { authorization: `Bearer ${token}` } }],
+    });
+
+    /** Every request that reached the VM: files written, setup commands, PTYs. */
+    const everythingTheVmSaw = (): string =>
+      [
+        ...world.written,
+        ...world.setup.map((started) => started.command),
+        ...world.ptys.map((pty) => pty.command),
+      ].join("\n");
+
+    it("moves CLAUDE_CODE_OAUTH_TOKEN out of the env and into an edge rule created with the VM", async () => {
+      const handle = await provider().create({
+        env: { CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat-real", OTHER: "1" },
+      });
+
+      expect(firstCreate()["tls"]).toStrictEqual({
+        rules: [edgeRule("sk-ant-oat-real")],
+      });
+      const seen = await handle.exec(
+        String.raw`printf '%s\n' "$CLAUDE_CODE_OAUTH_TOKEN $OTHER"; env | grep -c "sk-ant-oat-rea[l]"`,
+      );
+      expect(seen.stdout).toBe(`${PLACEHOLDER} 1\n0\n`);
+      expect(world.written.join("\n")).toContain(PLACEHOLDER);
+      expect(everythingTheVmSaw()).not.toContain("sk-ant-oat-real");
+    });
+
+    it("takes the claudeCodeOauthToken option over the env, and keeps the caller's own TLS rules", async () => {
+      const ingress = {
+        action: "allow" as const,
+        domain: "app.example.com",
+        source: { public: true as const },
+        destination: { port: 8000 },
+      };
+      const handle = await provider({
+        claudeCodeOauthToken: "sk-ant-oat-option",
+        tls: { rules: [ingress] },
+      }).create({ env: { CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat-env" } });
+
+      expect(firstCreate()["tls"]).toStrictEqual({
+        rules: [ingress, edgeRule("sk-ant-oat-option")],
+      });
+      const seen = await handle.exec('printf %s "$CLAUDE_CODE_OAUTH_TOKEN"');
+      expect(seen.stdout).toBe(PLACEHOLDER);
+      const vm = everythingTheVmSaw();
+      expect(vm).not.toContain("sk-ant-oat-option");
+      expect(vm).not.toContain("sk-ant-oat-env");
+    });
+
+    it("sets the placeholder from the option alone, when the env has no token", async () => {
+      const handle = await provider({
+        claudeCodeOauthToken: "sk-ant-oat-option",
+      }).create({ env: {} });
+
+      const seen = await handle.exec('printf %s "$CLAUDE_CODE_OAUTH_TOKEN"');
+      expect(seen.stdout).toBe(PLACEHOLDER);
+      expect(firstCreate()["tls"]).toStrictEqual({
+        rules: [edgeRule("sk-ant-oat-option")],
+      });
+    });
+
+    it("adds no rule without a real token: none, an empty one, or the placeholder", async () => {
+      await provider().create({ env: {} });
+      await provider({ claudeCodeOauthToken: "" }).create({
+        env: { CLAUDE_CODE_OAUTH_TOKEN: "" },
+      });
+      await provider().create({
+        env: { CLAUDE_CODE_OAUTH_TOKEN: PLACEHOLDER },
+      });
+
+      expect(world.created.map((body) => "tls" in body)).toStrictEqual([
+        false,
+        false,
+        false,
+      ]);
+    });
+
+    it("deletes the VM, and the rule with it, when setup fails", async () => {
+      world.failSetup = true;
+
+      await expect(
+        provider().create({
+          env: { CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat-real" },
+        }),
+      ).rejects.toThrow("mkdir: Permission denied");
+      expect(firstCreate()["tls"]).toStrictEqual({
+        rules: [edgeRule("sk-ant-oat-real")],
+      });
+      expect(world.deleted).toStrictEqual([world.created[0]?.["slug"]]);
+    });
   });
 
   it("refuses an env name the shell can't export", async () => {
