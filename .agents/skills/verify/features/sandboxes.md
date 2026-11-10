@@ -130,6 +130,22 @@ Ledger section (e) checks the result against the world's canary and every undecl
   - As vercel, for the commits and patches.
   - Teardown needs the Sprites listing, not the ledger: `client.listAllSprites("sandcastle-")` from `@fly/sprites` before and after, and the `sandboxId` gone from it. Give an interrupted run a few seconds: the delete runs after the process exits.
 
+## freestyle (`…/sandboxes/freestyle`, isolated)
+
+- **Entry:** `freestyle({ apiKey?, baseUrl?, firewall?, env?, maxOutputTailChars?, ...vms.create() options })` (`src/sandboxes/freestyle.ts`).
+- **Peer dependency:** `freestyle`, which a world lacks: `npm run -s verify -- sh <run> npm install freestyle`, then commit.
+- **Auth:** `FREESTYLE_API_KEY`; the `apiKey` option wins. No key fails before anything is created, naming `FREESTYLE_API_KEY`.
+- **Behaviour:**
+  - Boots `freestyle/ubuntu` unless `snapshotId` says otherwise: user `ubuntu` (uid 1000) with passwordless `sudo`, `git`, Node and coding-agent CLIs on the PATH.
+  - The firewall defaults to all outbound traffic to the public Internet; `firewall` replaces it.
+  - The repo lands at `$HOME/workspace` (`/home/ubuntu/workspace`). `sandboxId` is the VM id; the VM's slug is `sandcastle-<uuid>`.
+  - Every `exec` runs over a PTY session (`src/sandboxes/freestyleExec.ts`), not `vm.exec()`, which caps a command at five minutes. A per-exec bash script in a private scratch folder carries the env, cwd and stdin, sends stdout through `cat` to the PTY and stderr to a file read back after the exit. Setup commands (mkdir, chown, tar) use `vm.exec()`.
+  - Files written through the SDK are root-owned, so `copyIn` `chown`s them to the VM user as root.
+  - **VMs persist until deleted.** `close()` deletes the VM, and so does a failed setup (by slug). On SIGINT/SIGTERM, or an exit without `close()`, a detached child process deletes it after Sandcastle exits.
+- **Proof:**
+  - As vercel, for the commits and patches.
+  - Teardown needs the VM listing, not the ledger: `npm run -s verify -- reap` before and after, and the `sandboxId` gone from it. Give an interrupted run a few seconds: the delete runs after the process exits.
+
 ## noSandbox: never run
 
 `noSandbox()` runs the agent on this host with the host's **whole** env (`src/sandboxes/no-sandbox.ts:51`). That is unsafe here, and no sandbox seam exists to test. Its claims are proved by vitest tests beside `src/sandboxes/no-sandbox.ts` and reported as `VERIFIED (unit test)` or `FAILED (unit test)`, naming the test. `interactive()` and `wt.interactive()` default to it, so always pass a sandbox.

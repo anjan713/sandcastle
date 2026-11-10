@@ -2,7 +2,8 @@
  * The remote providers' accounts, as `reap` sees them: list what is alive,
  * remove one. Keys come from the env (lib.ts loadKeys) and are never printed.
  *
- * Sandcastle's mark: Sprites are named `sandcastle-<uuid>`, and Modal
+ * Sandcastle's mark: Sprites are named, and Freestyle VMs slugged,
+ * `sandcastle-<uuid>`, and Modal
  * sandboxes go in the `sandcastle` App. Vercel, Daytona and E2B sandboxes
  * carry no mark, so `reap` deletes one of those only when named by id.
  */
@@ -231,6 +232,47 @@ const spritesAccount: RemoteAccount = {
   },
 };
 
+// --- Freestyle -----------------------------------------------------------------
+
+const FREESTYLE_PREFIX = "sandcastle-";
+const FREESTYLE_PAGE = 100;
+
+const freestyleClient = async () => {
+  const { Freestyle } = await import("freestyle");
+  return new Freestyle({ apiKey: env("FREESTYLE_API_KEY") });
+};
+
+const freestyleAccount: RemoteAccount = {
+  provider: "freestyle",
+  missing: () => missingKeys(SANDBOX_NEEDS.freestyle.keys),
+  list: async () => {
+    const client = await freestyleClient();
+    // A VM is billed until deleted, whatever its state, so every one listed
+    // counts as alive. The first page says how many pages follow.
+    const first = await client.vms.list({ limit: FREESTYLE_PAGE });
+    const offsets: number[] = [];
+    for (let at = FREESTYLE_PAGE; at < first.totalCount; at += FREESTYLE_PAGE) {
+      offsets.push(at);
+    }
+    const rest = await Promise.all(
+      offsets.map(async (offset) =>
+        client.vms.list({ limit: FREESTYLE_PAGE, offset }),
+      ),
+    );
+    return [first, ...rest]
+      .flatMap((page) => page.vms)
+      .map((vm) => ({
+        id: vm.id,
+        state: vm.state,
+        ours: vm.slug?.startsWith(FREESTYLE_PREFIX) === true,
+      }));
+  },
+  remove: async (id) => {
+    const client = await freestyleClient();
+    await client.vms.delete(id);
+  },
+};
+
 export const REMOTE_ACCOUNTS: Readonly<Record<RemoteProvider, RemoteAccount>> =
   {
     vercel: vercelAccount,
@@ -238,6 +280,7 @@ export const REMOTE_ACCOUNTS: Readonly<Record<RemoteProvider, RemoteAccount>> =
     e2b: e2bAccount,
     modal: modalAccount,
     sprites: spritesAccount,
+    freestyle: freestyleAccount,
   };
 
 /** `npm run -s verify -- reap [--delete] [<provider>:<id>…]`; returns the exit code. */

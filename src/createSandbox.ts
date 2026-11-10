@@ -245,6 +245,8 @@ export interface Sandbox {
    *   then `terminate()`, from `modal`.
    * - `sprites()`: the Sprite's name: `client.getSprite(<sandboxId>)`, then
    *   `delete()`, from `@fly/sprites`.
+   * - `freestyle()`: the Freestyle VM id: `freestyle.vms.delete(<sandboxId>)`
+   *   from `freestyle`, or `freestyle vm delete <sandboxId>`.
    * - A custom provider: whatever its handle's `sandboxId` is.
    *
    * `undefined` for `noSandbox()` and the native `bwrap()` and `seatbelt()`
