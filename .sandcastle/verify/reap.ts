@@ -5,20 +5,27 @@
  * The accounts themselves (the SDK and REST calls) are in remoteAccounts.ts.
  */
 
-export type RemoteProvider = "vercel" | "daytona" | "e2b" | "modal" | "sprites";
+export type RemoteProvider =
+  | "vercel"
+  | "daytona"
+  | "e2b"
+  | "modal"
+  | "sprites"
+  | "freestyle";
 export const REMOTE_PROVIDERS: readonly RemoteProvider[] = [
   "vercel",
   "daytona",
   "e2b",
   "modal",
   "sprites",
+  "freestyle",
 ];
 
 export interface AliveSandbox {
   readonly id: string;
   /** The provider's own word for it: `running`, `paused`, `started`… */
   readonly state: string;
-  /** Carries Sandcastle's mark (a Sprite named `sandcastle-…`, a Modal sandbox in the `sandcastle` App). */
+  /** Carries Sandcastle's mark (a Sprite or Freestyle VM slugged `sandcastle-…`, a Modal sandbox in the `sandcastle` App). */
   readonly ours: boolean;
 }
 

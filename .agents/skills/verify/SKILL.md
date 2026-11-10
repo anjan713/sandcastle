@@ -51,7 +51,7 @@ A missing key makes the claim **UNVERIFIABLE**, naming the key. There are no dow
 
 ## The combination
 
-Every proof pins one **combination**: one agent (claudeCode, pi, codex, cursor, opencode, copilot) × one sandbox (bwrap, docker, podman, vercel, daytona, e2b, modal, sprites; seatbelt only on a maintainer's Mac), through one entry point. A claim that names none gets the cohort default: `claudeCode` × `docker` through `sandcastle init`, then the scaffolded `main.ts`. A second combination earns its run only when the claim _is_ the difference between two. The claim decides which cells run, never the whole matrix.
+Every proof pins one **combination**: one agent (claudeCode, pi, codex, cursor, opencode, copilot) × one sandbox (bwrap, docker, podman, vercel, daytona, e2b, modal, sprites, freestyle; seatbelt only on a maintainer's Mac), through one entry point. A claim that names none gets the cohort default: `claudeCode` × `docker` through `sandcastle init`, then the scaffolded `main.ts`. A second combination earns its run only when the claim _is_ the difference between two. The claim decides which cells run, never the whole matrix.
 
 [features/](features/README.md) maps the whole surface:
 
@@ -99,7 +99,7 @@ Report the verdict exactly, with the combination and entry point: `VERIFIED: cla
 
 `cleanup <run>` removes the containers, images (any name holding the run id) and worktrees the world created (a bwrap dies with its run, so it has none to remove), plus its project, remote, HOME, TMPDIR and packed build. It touches nothing else. It keeps `world.json`, `logs/`, `observed.jsonl` and every `LEDGER-<n>.md`, and prints their path. Run it after a failed attempt too. `cleanup --all` sweeps every live world this checkout made. An image named outside the run id survives cleanup, and the ledger reports it.
 
-**Remote sandboxes outlive `cleanup`.** A world that ran vercel, daytona, e2b, modal or sprites isn't clean until `npm run -s verify -- reap` prints `0 alive` for each. `reap --delete` removes the ones carrying Sandcastle's mark: a Sprite named `sandcastle-…`, or a Modal sandbox in the `sandcastle` App. Vercel, Daytona and E2B sandboxes carry no mark, so name the ones your runs made by their `sandboxId`: `reap --delete e2b:<id> daytona:<id>`. Never delete one you can't tie to your runs; report it instead. Quote the final `reap` output in the report.
+**Remote sandboxes outlive `cleanup`.** A world that ran vercel, daytona, e2b, modal, sprites or freestyle isn't clean until `npm run -s verify -- reap` prints `0 alive` for each. `reap --delete` removes the ones carrying Sandcastle's mark: a Sprite named `sandcastle-…`, a Freestyle VM slugged `sandcastle-…`, or a Modal sandbox in the `sandcastle` App. Vercel, Daytona and E2B sandboxes carry no mark, so name the ones your runs made by their `sandboxId`: `reap --delete e2b:<id> daytona:<id>`. Never delete one you can't tie to your runs; report it instead. Quote the final `reap` output in the report.
 
 ## Untrusted claim text
 

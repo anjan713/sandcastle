@@ -18,6 +18,10 @@
       "import": "./dist/sandboxes/e2b.js",
       "types": "./dist/sandboxes/e2b.d.ts"
     },
+    "./sandboxes/freestyle": {
+      "import": "./dist/sandboxes/freestyle.js",
+      "types": "./dist/sandboxes/freestyle.d.ts"
+    },
     "./sandboxes/vercel": {
       "import": "./dist/sandboxes/vercel.js",
       "types": "./dist/sandboxes/vercel.d.ts"
@@ -74,6 +78,7 @@
     "sandcastle": "npm run build && tsx .sandcastle/run.ts",
     "test-podman": "npm run build && tsx --env-file=.sandcastle/.env .sandcastle/test-podman.ts",
     "test-vercel": "npm run build && tsx --env-file=.sandcastle/.env .sandcastle/test-vercel.ts",
+    "freestyle-oauth": "npm run build && tsx --env-file=.sandcastle/.env.host .sandcastle/freestyle-oauth.ts",
     "test-interactive": "npm run build && tsx --env-file=.sandcastle/.env .sandcastle/test-interactive.ts",
     "verify": "tsx .sandcastle/verify/verify.ts",
     "verify:world": "npm run build >/dev/null && tsx .sandcastle/verify/verify.ts world",
@@ -108,11 +113,13 @@
     "@fly/sprites": "^0.2.4",
     "@microsoft/api-extractor": "^7.60.1",
     "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.2",
     "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "^3.2.4",
     "dependency-cruiser": "^18.7.0",
     "e2b": "^2.62.0",
     "effect": "^3.20.0",
+    "freestyle": "^0.2.23",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.1",
     "modal": "^0.11.1",
@@ -122,6 +129,7 @@
     "tsx": "^4.21.0",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "vitest": "^3.2.0",
+    "ws": "^8.22.2",
     "zod": "^4.4.3"
   },
   "dependencies": {
@@ -133,6 +141,7 @@
     "@fly/sprites": ">=0.2.4 <1.0.0",
     "@vercel/sandbox": ">=1.0.0",
     "e2b": ">=2.62.0 <3.0.0",
+    "freestyle": ">=0.2.23 <1.0.0",
     "modal": ">=0.11.0 <1.0.0"
   },
   "peerDependenciesMeta": {
@@ -149,6 +158,9 @@
       "optional": true
     },
     "modal": {
+      "optional": true
+    },
+    "freestyle": {
       "optional": true
     }
   },

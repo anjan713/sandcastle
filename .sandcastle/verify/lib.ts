@@ -37,7 +37,8 @@ export type Sandbox =
   | "daytona"
   | "e2b"
   | "modal"
-  | "sprites";
+  | "sprites"
+  | "freestyle";
 export const SANDBOXES: readonly Sandbox[] = [
   "bwrap",
   "docker",
@@ -47,6 +48,7 @@ export const SANDBOXES: readonly Sandbox[] = [
   "e2b",
   "modal",
   "sprites",
+  "freestyle",
 ];
 
 /**
@@ -125,6 +127,7 @@ export const SANDBOX_NEEDS: Record<
   e2b: { keys: [["E2B_API_KEY"]] },
   modal: { keys: [["MODAL_TOKEN_ID"], ["MODAL_TOKEN_SECRET"]] },
   sprites: { keys: [["SPRITES_TOKEN", "SPRITE_TOKEN"]] },
+  freestyle: { keys: [["FREESTYLE_API_KEY"]] },
 };
 
 /** The keys groups that are missing from the environment, by first name. */

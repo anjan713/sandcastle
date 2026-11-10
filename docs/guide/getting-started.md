@@ -8,7 +8,7 @@ A TypeScript library for orchestrating AI coding [agents](./glossary.md#agent), 
 2. Sandcastle handles sandboxing the agent with a configurable [branch strategy](./glossary.md#branch-strategy), which decides where the agent's commits go: onto your current branch, onto a temporary branch it merges back for you, or onto a branch you name.
 3. The commits made on the branches get merged back.
 
-Sandcastle is provider-agnostic. It ships with native sandboxes that use your OS's own process sandbox (Bubblewrap on Linux and WSL2, Seatbelt on macOS), image-based providers for Docker and Podman, and cloud providers for Daytona, E2B, Fly.io Sprites, Modal and Vercel, and you can create your own. Great for parallelizing multiple AFK agents, creating review pipelines, or even just orchestrating your own agents.
+Sandcastle is provider-agnostic. It ships with native sandboxes that use your OS's own process sandbox (Bubblewrap on Linux and WSL2, Seatbelt on macOS), image-based providers for Docker and Podman, and cloud providers for Daytona, E2B, Fly.io Sprites, Freestyle, Modal and Vercel, and you can create your own. Great for parallelizing multiple AFK agents, creating review pipelines, or even just orchestrating your own agents.
 
 ## Prerequisites
 

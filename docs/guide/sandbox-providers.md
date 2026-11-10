@@ -9,6 +9,7 @@ The `sandbox` option on `run()`, `interactive()`, and `createSandbox()` accepts 
 | Docker     | `@ai-hero/sandcastle/sandboxes/docker`     | Bind-mount          | `run()`, `createSandbox()`, `interactive()` |
 | Podman     | `@ai-hero/sandcastle/sandboxes/podman`     | Bind-mount          | `run()`, `createSandbox()`, `interactive()` |
 | E2B        | `@ai-hero/sandcastle/sandboxes/e2b`        | Isolated            | `run()`, `createSandbox()`                  |
+| Freestyle  | `@ai-hero/sandcastle/sandboxes/freestyle`  | Isolated            | `run()`, `createSandbox()`                  |
 | Modal      | `@ai-hero/sandcastle/sandboxes/modal`      | Isolated            | `run()`, `createSandbox()`                  |
 | Sprites    | `@ai-hero/sandcastle/sandboxes/sprites`    | Isolated            | `run()`, `createSandbox()`                  |
 | Vercel     | `@ai-hero/sandcastle/sandboxes/vercel`     | Isolated            | `run()`, `createSandbox()`, `interactive()` |
@@ -125,6 +126,36 @@ await run({
 ```
 
 `e2b()` accepts the SDK's `Sandbox.create()` options (`template`, `timeoutMs`, `apiKey`, `metadata`, `network`, ...) except `envs` and `lifecycle`, which the provider sets. The repo lands in `$HOME/workspace`. Each sandbox is killed on `close()`, or when `timeoutMs` (default 30 minutes) runs out, so the timeout must cover setup, the agent run and syncing the commits back. E2B's free Hobby plan caps a sandbox at 1 hour. The handle's `sandboxId` is the E2B sandbox id. `interactive()` isn't supported yet.
+
+## Freestyle: `freestyle()`
+
+`freestyle()` runs each sandbox in a new [Freestyle](https://www.freestyle.sh) VM. It's an isolated provider: Sandcastle copies the repo in at `$HOME/workspace` (`/home/ubuntu/workspace` on the default image) and brings the agent's commits back out. Install the SDK alongside Sandcastle:
+
+```bash
+npm install freestyle
+```
+
+- **Auth.** Put a Freestyle API key in `FREESTYLE_API_KEY` (in `.sandcastle/.env` or your shell). The `apiKey` option wins over it.
+- **Image.** VMs boot from the `freestyle/ubuntu` snapshot unless you pass `snapshotId`. It ships `git`, Node and the common coding-agent CLIs, and commands run as its `ubuntu` user. Boot from a snapshot of your own to start with more installed, or install it in an `onSandboxReady` hook.
+- **Network.** A Freestyle VM reaches nothing it hasn't been allowed to. By default `freestyle()` allows all outbound traffic to the public Internet, which the agent needs to reach its model, and nothing inbound. Pass `firewall` to state your own rules instead.
+- **Options.** Every other `freestyle.vms.create()` option passes through (`snapshotId`, `ttlSeconds`, `idleTimeoutSeconds`, `metadata`, `vpcs`, ...), except `slug`: Sandcastle names each VM `sandcastle-<uuid>`.
+- **Teardown.** A VM keeps running until it's deleted. `close()` deletes it, and so does a failed setup. If the process is interrupted (`SIGINT`/`SIGTERM`) or exits without closing the sandbox, Sandcastle deletes the VM from a background process. `ttlSeconds` adds a hard deadline on Freestyle's side, if you want one.
+- **`sandboxId`** is the Freestyle VM id, which the `freestyle` CLI and SDK take.
+- **`sudo: true`** runs the command as the VM's `root` user.
+- **No `interactive()`.** Use `run()` or `createSandbox()`.
+
+```typescript
+import { run, claudeCode } from "@ai-hero/sandcastle";
+import { freestyle } from "@ai-hero/sandcastle/sandboxes/freestyle";
+
+await run({
+  agent: claudeCode("claude-opus-4-8"),
+  sandbox: freestyle({
+    env: { MY_VAR: "value" }, // merged at launch, like docker()'s env
+  }),
+  prompt: "...",
+});
+```
 
 ## Fly.io Sprites: `sprites()`
 
